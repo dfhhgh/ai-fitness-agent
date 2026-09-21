@@ -14,8 +14,15 @@ from app.profile.models import (
     ProfilePatch,
     TrainingInfo,
 )
+from app.profile.policies import ALLOWED_UPDATE_PATHS
+from app.profile.validator import (
+    ProfileValidationError,
+    validate_patch,
+    validate_profile_patch,
+)
 
 __all__ = [
+    "ALLOWED_UPDATE_PATHS",
     "ClientProfile",
     "GoalInfo",
     "HealthInfo",
@@ -24,5 +31,8 @@ __all__ = [
     "PersonalInfo",
     "ProfileMetadata",
     "ProfilePatch",
+    "ProfileValidationError",
     "TrainingInfo",
+    "validate_patch",
+    "validate_profile_patch",
 ]

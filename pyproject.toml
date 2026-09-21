@@ -22,10 +22,14 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-ra -q"
+addopts = "-ra -q -m 'not integration'"
 testpaths = [
     "tests",
 ]
 pythonpath = [
     ".",
 ]
+markers = [
+    "integration: mark test as remote integration test (deselected by default)",
+]
+

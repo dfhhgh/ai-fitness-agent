@@ -8,6 +8,7 @@ Note:
 
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel, ConfigDict, Field
 
 

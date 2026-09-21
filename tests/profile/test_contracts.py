@@ -16,11 +16,14 @@ from app.profile.models import (
     ProfilePatch,
     TrainingInfo,
 )
+from app.profile.policies import ALLOWED_UPDATE_PATHS
 from app.profile.schemas import (
     get_client_profile_schema,
     get_fitness_plan_schema,
     get_profile_patch_schema,
 )
+from app.profile.validator import ProfileValidationError, validate_profile_patch
+
 
 
 def test_models_import_and_instantiation():
@@ -198,4 +201,174 @@ def test_fitness_plan_schema_validation():
         },
     }
     validator.validate(valid_plan)
+
+
+def test_allowed_update_paths_contract_alignment():
+    """Verify ALLOWED_UPDATE_PATHS matches profile_patch.schema.json exactly."""
+    schema = get_profile_patch_schema()
+    schema_enum_paths = set(
+        schema["properties"]["updates"]["propertyNames"]["enum"]
+    )
+    schema_properties_paths = set(
+        schema["properties"]["updates"]["properties"].keys()
+    )
+
+    # 1. Exactly 15 allowed paths
+    assert len(ALLOWED_UPDATE_PATHS) == 15
+
+    # 2. policies.py matches schema propertyNames enum
+    assert ALLOWED_UPDATE_PATHS == schema_enum_paths
+
+    # 3. policies.py matches schema properties keys
+    assert ALLOWED_UPDATE_PATHS == schema_properties_paths
+
+    # 4. InBody fields must NOT be in ALLOWED_UPDATE_PATHS
+    inbody_paths = [p for p in ALLOWED_UPDATE_PATHS if p.startswith("inbody.")]
+    assert inbody_paths == []
+
+
+def test_deterministic_validator_accepts_all_allowed_paths():
+    """Verify validate_profile_patch accepts a patch containing all 15 valid paths."""
+    all_paths_patch = {
+        "updates": {
+            "personal.age": 25,
+            "personal.gender": "رجل",
+            "personal.height_cm": 178.0,
+            "personal.weight_kg": 82.5,
+            "goal.type": "weight_loss",
+            "goal.target_weight_kg": 75.0,
+            "goal.weight_change_target_kg": -7.5,
+            "training.days_per_week": 4,
+            "training.duration": "3 months",
+            "training.experience": "intermediate",
+            "training.activity_description": "مكتبي",
+            "health.injuries": ["knee pain"],
+            "nutrition.food_preferences": ["chicken", "rice"],
+            "nutrition.disliked_foods": ["fish"],
+            "nutrition.disliked_activities": ["running"],
+        },
+        "unknown_fields": [],
+        "conflicts": [],
+    }
+    # Dict form
+    validate_profile_patch(all_paths_patch)
+
+    # Model form
+    patch_model = ProfilePatch.model_validate(all_paths_patch)
+    validate_profile_patch(patch_model)
+
+
+def test_deterministic_validator_rejects_arbitrary_paths():
+    """Verify validate_profile_patch strictly rejects arbitrary update paths."""
+    # Arbitrary path
+    bad_patch = {
+        "updates": {"some.random.field": "bad"},
+        "unknown_fields": [],
+        "conflicts": [],
+    }
+    with pytest.raises(ProfileValidationError, match="Arbitrary paths are strictly forbidden"):
+        validate_profile_patch(bad_patch)
+
+    # Non-existent subfield
+    bad_subfield = {
+        "updates": {"personal.foo": 123},
+        "unknown_fields": [],
+        "conflicts": [],
+    }
+    with pytest.raises(ProfileValidationError, match="Arbitrary paths are strictly forbidden"):
+        validate_profile_patch(bad_subfield)
+
+
+def test_deterministic_validator_rejects_inbody_paths():
+    """Verify InBody fields are strictly rejected by the validator."""
+    inbody_patch = {
+        "updates": {"inbody.body_fat_percent": 20},
+        "unknown_fields": [],
+        "conflicts": [],
+    }
+    with pytest.raises(ProfileValidationError, match="InBody fields cannot be updated via ProfilePatch"):
+        validate_profile_patch(inbody_patch)
+
+    inbody_weight = {
+        "updates": {"inbody.weight_kg": 75},
+        "unknown_fields": [],
+        "conflicts": [],
+    }
+    with pytest.raises(ProfileValidationError, match="InBody fields cannot be updated via ProfilePatch"):
+        validate_profile_patch(inbody_weight)
+
+
+def test_deterministic_validator_rejects_invalid_types():
+    """Verify invalid types for allowed paths are rejected by validate_profile_patch."""
+    # String age
+    with pytest.raises(ProfileValidationError, match="must be an integer"):
+        validate_profile_patch({
+            "updates": {"personal.age": "twenty five"},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+    # Boolean age (bool is subclass of int in Python)
+    with pytest.raises(ProfileValidationError, match="must be an integer"):
+        validate_profile_patch({
+            "updates": {"personal.age": True},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+    # Non-positive height
+    with pytest.raises(ProfileValidationError, match="must be greater than 0"):
+        validate_profile_patch({
+            "updates": {"personal.height_cm": -175.0},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+    # Days per week > 7
+    with pytest.raises(ProfileValidationError, match="must be between 0 and 7"):
+        validate_profile_patch({
+            "updates": {"training.days_per_week": 8},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+    # Non-list injuries
+    with pytest.raises(ProfileValidationError, match="must be a list"):
+        validate_profile_patch({
+            "updates": {"health.injuries": "knee pain"},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+
+def test_deterministic_validator_required_keys():
+    """Verify missing required keys in dict patch raise ProfileValidationError."""
+    missing_updates = {"unknown_fields": [], "conflicts": []}
+    with pytest.raises(ProfileValidationError, match="missing required keys"):
+        validate_profile_patch(missing_updates)
+
+    missing_unknown = {"updates": {}, "conflicts": []}
+    with pytest.raises(ProfileValidationError, match="missing required keys"):
+        validate_profile_patch(missing_unknown)
+
+    extra_key = {
+        "updates": {},
+        "unknown_fields": [],
+        "conflicts": [],
+        "unexpected_extra": True,
+    }
+    with pytest.raises(ProfileValidationError, match="unexpected top-level keys"):
+        validate_profile_patch(extra_key)
+
+
+def test_fitness_plan_schema_invariants():
+    """Verify FitnessPlan schema remains intact with all required top-level components."""
+    schema = get_fitness_plan_schema()
+    assert schema["title"] == "FitnessPlan"
+    assert set(schema["required"]) == {
+        "client_id",
+        "nutrition_plan",
+        "workout_plan",
+        "metadata",
+    }
 

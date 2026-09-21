@@ -20,6 +20,8 @@ from app.llm.client import LLMClient
 from app.llm.exceptions import LLMExtractionError
 from app.llm.prompts import PROFILE_EXTRACTION_SYSTEM_PROMPT
 from app.profile.models import ProfilePatch
+from app.profile.validator import validate_profile_patch
+
 
 
 # Regex to strip ```json ... ``` fences the LLM may accidentally emit
@@ -95,14 +97,17 @@ class ProfileExtractor:
 
     @staticmethod
     def _to_profile_patch(data: Dict[str, Any]) -> ProfilePatch:
-        """Validate *data* into the existing ProfilePatch Pydantic model.
+        """Validate *data* into ProfilePatch and enforce deterministic validation rules.
 
         Raises:
-            LLMExtractionError: If validation against ProfilePatch fails.
+            LLMExtractionError: If validation against ProfilePatch or deterministic rules fails.
         """
         try:
-            return ProfilePatch.model_validate(data)
+            patch = ProfilePatch.model_validate(data)
+            validate_profile_patch(patch)
+            return patch
         except Exception as exc:
             raise LLMExtractionError(
                 f"LLM output failed ProfilePatch validation: {exc}"
             ) from exc
+

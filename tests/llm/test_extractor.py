@@ -12,6 +12,7 @@ import pytest
 from app.llm.client import LLMClient
 from app.llm.exceptions import LLMExtractionError
 from app.llm.extractor import ProfileExtractor
+from app.llm.prompts import PROFILE_EXTRACTION_SYSTEM_PROMPT
 from app.profile.models import ProfilePatch
 
 
@@ -158,6 +159,33 @@ class TestProfileExtractor:
         assert "personal.gender" not in patch.updates
         assert "training.experience" not in patch.updates
 
+    def test_extractor_messages_contract(self):
+        """Verify the exact messages payload sent to LLMClient.chat().
+
+        The first message must be the system prompt, and the second message
+        must be the exact user message passed to extract().
+        """
+        mock_client = MagicMock(spec=LLMClient)
+        mock_client.chat.return_value = json.dumps({
+            "updates": {"personal.age": 28},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+        extractor = ProfileExtractor(client=mock_client)
+        user_msg = "أنا عندي 28 سنة وطولي 180 سم"
+        extractor.extract(user_msg)
+
+        mock_client.chat.assert_called_once()
+        call_args, _ = mock_client.chat.call_args
+        messages = call_args[0]
+
+        assert len(messages) == 2
+        assert messages[0]["role"] == "system"
+        assert messages[0]["content"] == PROFILE_EXTRACTION_SYSTEM_PROMPT
+        assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == user_msg
+
+
 
 class TestProfileExtractorEdgeCases:
     """Edge cases for LLM output cleaning and error handling."""
@@ -254,3 +282,40 @@ class TestProfileExtractorEdgeCases:
         assert "personal.height_cm" in patch.unknown_fields
         assert len(patch.conflicts) == 1
         assert patch.conflicts[0]["field"] == "personal.weight_kg"
+
+    def test_llm_arbitrary_path_rejected(self):
+        """LLM emitting an arbitrary update path is rejected deterministically."""
+        llm_output = json.dumps({
+            "updates": {"some.random.field": "bad"},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+        extractor = _make_extractor(llm_output)
+
+        with pytest.raises(LLMExtractionError, match="Arbitrary paths are strictly forbidden"):
+            extractor.extract("test")
+
+    def test_llm_inbody_path_rejected(self):
+        """LLM emitting an inbody path is rejected deterministically."""
+        llm_output = json.dumps({
+            "updates": {"inbody.body_fat_percent": 20},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+        extractor = _make_extractor(llm_output)
+
+        with pytest.raises(LLMExtractionError, match="InBody fields cannot be updated via ProfilePatch"):
+            extractor.extract("test")
+
+    def test_llm_invalid_type_rejected(self):
+        """LLM emitting wrong type for field is rejected deterministically."""
+        llm_output = json.dumps({
+            "updates": {"personal.age": "twenty five"},
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+        extractor = _make_extractor(llm_output)
+
+        with pytest.raises(LLMExtractionError, match="must be an integer"):
+            extractor.extract("test")
+
