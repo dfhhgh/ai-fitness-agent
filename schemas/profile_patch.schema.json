@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ProfilePatch",
+  "type": "object",
+  "required": [
+    "updates",
+    "unknown_fields",
+    "conflicts"
+  ],
+  "properties": {
+    "updates": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "personal.age",
+          "personal.gender",
+          "personal.height_cm",
+          "personal.weight_kg",
+          "goal.type",
+          "goal.target_weight_kg",
+          "goal.weight_change_target_kg",
+          "training.days_per_week",
+          "training.duration",
+          "training.experience",
+          "training.activity_description",
+          "health.injuries",
+          "nutrition.food_preferences",
+          "nutrition.disliked_foods",
+          "nutrition.disliked_activities"
+        ]
+      },
+      "properties": {
+        "personal.age": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "personal.gender": {
+          "type": ["string", "null"]
+        },
+        "personal.height_cm": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "personal.weight_kg": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "goal.type": {
+          "type": ["string", "null"]
+        },
+        "goal.target_weight_kg": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "goal.weight_change_target_kg": {
+          "type": ["number", "null"]
+        },
+        "training.days_per_week": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 7
+        },
+        "training.duration": {
+          "type": ["string", "number", "null"]
+        },
+        "training.experience": {
+          "type": ["string", "null"]
+        },
+        "training.activity_description": {
+          "type": ["string", "null"]
+        },
+        "health.injuries": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        },
+        "nutrition.food_preferences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nutrition.disliked_foods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "nutrition.disliked_activities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "unknown_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "additionalProperties": false
+}

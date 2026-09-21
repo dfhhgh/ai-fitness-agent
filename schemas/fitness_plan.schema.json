@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FitnessPlan",
+  "type": "object",
+  "required": [
+    "client_id",
+    "nutrition_plan",
+    "workout_plan",
+    "metadata"
+  ],
+  "properties": {
+    "client_id": {
+      "type": "string"
+    },
+    "nutrition_plan": {
+      "type": "object",
+      "required": [
+        "targets",
+        "meals"
+      ],
+      "properties": {
+        "targets": {
+          "type": "object",
+          "required": [
+            "calories_kcal",
+            "protein_g",
+            "carbs_g",
+            "fat_g"
+          ],
+          "properties": {
+            "calories_kcal": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "protein_g": {
+              "type": "number",
+              "minimum": 0
+            },
+            "carbs_g": {
+              "type": "number",
+              "minimum": 0
+            },
+            "fat_g": {
+              "type": "number",
+              "minimum": 0
+            },
+            "fiber_g": {
+              "type": ["number", "null"],
+              "minimum": 0
+            }
+          }
+        },
+        "meals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "foods"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "foods": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "food_id",
+                    "quantity",
+                    "unit"
+                  ],
+                  "properties": {
+                    "food_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "quantity": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "weight_g": {
+                      "type": ["number", "null"],
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "workout_plan": {
+      "type": "object",
+      "required": [
+        "days"
+      ],
+      "properties": {
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "day",
+              "name",
+              "exercises"
+            ],
+            "properties": {
+              "day": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 7
+              },
+              "name": {
+                "type": "string"
+              },
+              "exercises": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "exercise_id",
+                    "sets",
+                    "reps"
+                  ],
+                  "properties": {
+                    "exercise_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "sets": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "reps": {
+                      "type": "string"
+                    },
+                    "rir": {
+                      "type": ["number", "null"]
+                    },
+                    "rest_seconds": {
+                      "type": ["integer", "null"],
+                      "minimum": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "status",
+        "version"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "VALIDATED",
+            "PUBLISHED",
+            "REJECTED"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "generated_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

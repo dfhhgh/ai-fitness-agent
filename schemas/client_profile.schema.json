@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ClientProfile",
+  "type": "object",
+  "required": [
+    "client_id",
+    "personal",
+    "goal",
+    "training",
+    "health",
+    "nutrition",
+    "inbody",
+    "metadata"
+  ],
+  "properties": {
+    "client_id": {
+      "type": ["string", "null"]
+    },
+    "personal": {
+      "type": "object",
+      "required": [
+        "age",
+        "gender",
+        "height_cm",
+        "weight_kg"
+      ],
+      "properties": {
+        "age": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "gender": {
+          "type": ["string", "null"]
+        },
+        "height_cm": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "weight_kg": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "goal": {
+      "type": "object",
+      "required": [
+        "type",
+        "target_weight_kg",
+        "weight_change_target_kg"
+      ],
+      "properties": {
+        "type": {
+          "type": ["string", "null"]
+        },
+        "target_weight_kg": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "weight_change_target_kg": {
+          "type": ["number", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "training": {
+      "type": "object",
+      "required": [
+        "days_per_week",
+        "duration",
+        "experience",
+        "activity_description"
+      ],
+      "properties": {
+        "days_per_week": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "maximum": 7
+        },
+        "duration": {
+          "type": ["string", "number", "null"]
+        },
+        "experience": {
+          "type": ["string", "null"]
+        },
+        "activity_description": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "health": {
+      "type": "object",
+      "required": [
+        "injuries"
+      ],
+      "properties": {
+        "injuries": {
+          "type": ["array", "null"],
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "nutrition": {
+      "type": "object",
+      "required": [
+        "food_preferences",
+        "disliked_foods",
+        "disliked_activities"
+      ],
+      "properties": {
+        "food_preferences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disliked_foods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "disliked_activities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "inbody": {
+      "type": "object",
+      "required": [
+        "weight_kg",
+        "body_fat_percent",
+        "fat_mass_kg",
+        "skeletal_muscle_mass_kg",
+        "bmi",
+        "visceral_fat_level"
+      ],
+      "properties": {
+        "weight_kg": {
+          "type": ["number", "null"],
+          "exclusiveMinimum": 0
+        },
+        "body_fat_percent": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fat_mass_kg": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "skeletal_muscle_mass_kg": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "bmi": {
+          "type": ["number", "null"],
+          "minimum": 0
+        },
+        "visceral_fat_level": {
+          "type": ["number", "null"],
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "required": [
+        "profile_status",
+        "missing_fields",
+        "last_updated"
+      ],
+      "properties": {
+        "profile_status": {
+          "type": "string",
+          "enum": [
+            "INCOMPLETE",
+            "COMPLETE",
+            "VALIDATED"
+          ]
+        },
+        "missing_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "last_updated": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
