@@ -319,3 +319,136 @@ class TestProfileExtractorEdgeCases:
         with pytest.raises(LLMExtractionError, match="must be an integer"):
             extractor.extract("test")
 
+
+class TestNestedSectionFlattening:
+    """Tests for the targeted flattener that handles nested LLM output."""
+
+    def test_nested_health_injuries_flattened(self):
+        """Nested {'health': {'injuries': []}} is flattened to 'health.injuries': []."""
+        llm_output = json.dumps({
+            "updates": {
+                "health": {
+                    "injuries": []
+                }
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        patch = extractor.extract("مفيش عندي أي إصابات")
+
+        assert "health.injuries" in patch.updates
+        assert patch.updates["health.injuries"] == []
+
+    def test_nested_health_injuries_with_values(self):
+        """Nested injuries with values are flattened correctly."""
+        llm_output = json.dumps({
+            "updates": {
+                "health": {
+                    "injuries": ["إصابة في الركبة"]
+                }
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        patch = extractor.extract("عندي إصابة في الركبة")
+
+        assert patch.updates["health.injuries"] == ["إصابة في الركبة"]
+
+    def test_nested_personal_flattened(self):
+        """Nested {'personal': {'age': 25}} is flattened to 'personal.age': 25."""
+        llm_output = json.dumps({
+            "updates": {
+                "personal": {
+                    "age": 25,
+                    "gender": "رجل"
+                }
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        patch = extractor.extract("أنا 25 سنة وراجل")
+
+        assert patch.updates["personal.age"] == 25
+        assert patch.updates["personal.gender"] == "رجل"
+
+    def test_nested_training_flattened(self):
+        """Nested training fields are flattened correctly."""
+        llm_output = json.dumps({
+            "updates": {
+                "training": {
+                    "days_per_week": 4,
+                    "duration": "2 months"
+                }
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        patch = extractor.extract("بتمرن 4 أيام في الأسبوع وبقالي شهرين")
+
+        assert patch.updates["training.days_per_week"] == 4
+        assert patch.updates["training.duration"] == "2 months"
+
+    def test_mixed_flat_and_nested(self):
+        """Mix of flat dotted paths and nested section dicts."""
+        llm_output = json.dumps({
+            "updates": {
+                "personal.age": 25,
+                "health": {
+                    "injuries": []
+                },
+                "training.days_per_week": 4,
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        patch = extractor.extract("أنا 25 سنة، بتمرن 4 أيام، مفيش إصابات")
+
+        assert patch.updates["personal.age"] == 25
+        assert patch.updates["health.injuries"] == []
+        assert patch.updates["training.days_per_week"] == 4
+
+    def test_flat_format_still_works(self):
+        """Standard flat dotted-path format continues to work unchanged."""
+        llm_output = json.dumps({
+            "updates": {
+                "personal.age": 25,
+                "health.injuries": [],
+                "training.days_per_week": 4,
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        patch = extractor.extract("test")
+
+        assert patch.updates["personal.age"] == 25
+        assert patch.updates["health.injuries"] == []
+        assert patch.updates["training.days_per_week"] == 4
+
+    def test_unknown_section_not_flattened(self):
+        """Unknown top-level key in updates is NOT flattened, just passed through."""
+        llm_output = json.dumps({
+            "updates": {
+                "unknown_section": {
+                    "some_field": "value"
+                }
+            },
+            "unknown_fields": [],
+            "conflicts": [],
+        })
+
+        extractor = _make_extractor(llm_output)
+        with pytest.raises(LLMExtractionError, match="Arbitrary paths are strictly forbidden"):
+            extractor.extract("test")
+
