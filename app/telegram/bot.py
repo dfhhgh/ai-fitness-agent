@@ -4,6 +4,7 @@ Constructs all dependencies, registers handlers, and starts polling.
 Do NOT create new service/store instances per message.
 """
 
+import logging
 import os
 import sys
 
@@ -14,6 +15,18 @@ load_dotenv()
 
 def main() -> None:
     """Initialize and run the Telegram bot."""
+    # --- Logging configuration (must run before any imports that create loggers) ---
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+        stream=sys.stderr,
+    )
+    # Keep third-party loggers at INFO to avoid noise
+    logging.getLogger("httpx").setLevel(logging.INFO)
+    logging.getLogger("httpcore").setLevel(logging.INFO)
+    logging.getLogger("telegram").setLevel(logging.INFO)
+
     from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 
     from app.interview.controller import InterviewController
