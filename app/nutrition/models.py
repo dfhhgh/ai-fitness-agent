@@ -41,10 +41,15 @@ Key distinction:
   turn those authoritative targets into a practical personalized plan.
 """
 
+from __future__ import annotations
+
 from enum import Enum
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from app.nutrition.weight_target.models import WeightTargetResult
 
 
 # ---------------------------------------------------------------------------
@@ -66,10 +71,9 @@ class ActivityCategory(str, Enum):
 
     Each category maps to a specific activity factor in the TDEE calculation.
 
-    IMPORTANT: This is a NORMALIZED/PRE-CLASSIFIED value. The classification
-    mechanism (ActivityClassifier) belongs to a later phase. The mapping layer
-    normalizes ClientProfile.training.activity_description into this enum
-    before constructing NutritionAssessmentInput.
+    This is the OUTPUT of the ActivityClassifier. The classifier maps
+    structured inputs (OccupationalActivity, DailyMovement, training data)
+    into one of these normalized categories.
 
     Nutrition Core receives this as an input — it does NOT interpret
     Egyptian Arabic or classify raw activity descriptions.
@@ -79,6 +83,87 @@ class ActivityCategory(str, Enum):
     LIGHT = "light"
     MODERATE = "moderate"
     HIGH = "high"
+
+
+class OccupationalActivity(str, Enum):
+    """Occupational activity baseline classification.
+
+    Maps to a baseline activity score (0–3) representing the physical
+    demands of the user's occupation/work.
+
+    This is an INPUT to the ActivityClassifier, not an output.
+
+    Values:
+        SEDENTARY: Office/desk job, minimal physical demands (score 0).
+        LIGHT_MANUAL: Light manual tasks, retail, teaching (score 1).
+        ACTIVE_MANUAL: Active manual work, construction, nursing (score 2).
+        HEAVY_MANUAL: Heavy manual labor, mining, agriculture (score 3).
+    """
+
+    SEDENTARY = "sedentary"
+    LIGHT_MANUAL = "light_manual"
+    ACTIVE_MANUAL = "active_manual"
+    HEAVY_MANUAL = "heavy_manual"
+
+
+class DailyMovement(str, Enum):
+    """Daily movement level outside of structured exercise.
+
+    Represents non-exercise activity thermogenesis (NEAT) and general
+    daily movement patterns.
+
+    This is an INPUT to the ActivityClassifier.
+
+    Values:
+        LOW: Minimal daily movement, mostly stationary.
+        MODERATE: Regular daily movement (walking, errands).
+        HIGH: High daily movement (active commute, physical errands).
+    """
+
+    LOW = "low"
+    MODERATE = "moderate"
+    HIGH = "high"
+
+
+class ExerciseIntensity(str, Enum):
+    """Self-reported exercise intensity for structured workouts.
+
+    Used in WES (Work Exercise Score) calculation to weight training
+    sessions by intensity.
+
+    This is an INPUT to the ActivityClassifier.
+
+    Values:
+        NONE: No structured exercise.
+        LIGHT: Light exercise (walking, yoga, stretching).
+        MODERATE: Moderate exercise (jogging, cycling, weights).
+        VIGOROUS: Vigorous exercise (running, HIIT, heavy lifting).
+    """
+
+    NONE = "none"
+    LIGHT = "light"
+    MODERATE = "moderate"
+    VIGOROUS = "vigorous"
+
+
+class ActivityClassificationStatus(str, Enum):
+    """Status of activity classification result.
+
+    Describes whether the classification succeeded and whether the
+    result is reliable.
+
+    Values:
+        OK: All inputs present and valid, classification successful.
+        INCOMPLETE: Required fields missing (classification cannot run).
+        CONFLICT: Logically contradictory inputs (e.g., HEAVY_MANUAL
+            occupation with LOW daily movement).
+        ERROR: Invalid values (e.g., training_days_per_week > 7).
+    """
+
+    OK = "OK"
+    INCOMPLETE = "INCOMPLETE"
+    CONFLICT = "CONFLICT"
+    ERROR = "ERROR"
 
 
 class RMRMethod(str, Enum):
@@ -325,6 +410,9 @@ class NutritionAssessment(BaseModel):
         warnings: Human-readable warning messages.
         review_flags: Flags requiring expert review.
         issues: Structured issues for programmatic handling.
+        weight_target: Optional WeightTargetResult from the weight
+            target determination module (weight-target-v1-rev1).
+            Read-only for the LLM planner; never recalculate.
         policy_version: Version string for audit trail.
     """
 
@@ -336,6 +424,7 @@ class NutritionAssessment(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     review_flags: List[str] = Field(default_factory=list)
     issues: List[AssessmentIssue] = Field(default_factory=list)
+    weight_target: Optional[WeightTargetResult] = None
     policy_version: str = Field(default="nutrition-v1")
 
 
@@ -418,6 +507,9 @@ class NutritionPlanningContext(BaseModel):
         inbody: Optional InBody snapshot (measurement, not absolute truth).
         # Authoritative targets
         targets: NutritionTargets from deterministic Nutrition Core.
+        # Weight target determination (optional; read-only for LLM)
+        weight_target: Optional WeightTargetResult (reference range,
+            initial milestone, validation/review flags).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -454,3 +546,6 @@ class NutritionPlanningContext(BaseModel):
 
     # --- Authoritative targets ---
     targets: NutritionTargets
+
+    # --- Weight target determination (optional) ---
+    weight_target: Optional[WeightTargetResult] = None
